@@ -21,7 +21,7 @@
 
 \section{Pruning Candidates with Small First Runs}
 
-Consider a candidate compaction on sorted runs with sizes $s_1,s_2,\cdots, s_n$, $n>2$, where $s_1$ is the newest and typically smallest. We can prove that if
+Consider a candidate compaction on sorted runs with sizes $s_1$, $s_2$, $\cdots$, $s_n$, $n>2$, where $s_1$ is the newest and typically smallest. We can prove that if
 \begin{equation}\label{math:first-is-small}
 s_1 \leq (\sum_{i=2}^{n} s_i) / (n-1) / k_\text{num},
 \end{equation}
@@ -32,7 +32,13 @@ For readability, we directly present our constructed size sequence of newer runs
 
 The size sequence of the new compaction formed by the new sorted runs and $s_1$ is $s_\text{new} = [\Delta s_1, \cdots, \Delta s_{\Delta n}, s_1]$. According to the definition of $R_\text{num}$, $R_\text{num}(s') = (n-2) / ((n-1)\bar s')$. Therefore, the preemptive number condition is satisfied:
 \begin{equation}\label{math:sliding-window-number-condition}
-R_\text{num}(s_\text{new}) = \frac{\Delta n}{\Delta a + s_1} = \frac{k_\text{num}}{\bar s'} = \frac{n-1}{n-2} k_\text{num} R_\text{num}(s') > k_\text{num} R_\text{num}(s')
+\begin{aligned}
+R_\text{num}(s_\text{new})
+&= \frac{\Delta n}{\Delta a + s_1}
+= \frac{k_\text{num}}{\bar s'} \\
+&= \frac{n-1}{n-2} k_\text{num} R_\text{num}(s')
+> k_\text{num} R_\text{num}(s')
+\end{aligned}
 \end{equation}
 Define helper variable $d = \Delta n \cdot \bar s' / k_\text{num}$, then $\Delta a = d - s_1$. Define $f(x) = \log_2 d - (x \log_2 x + (d - x) \log_2 ((d - x) / \Delta n)) / d$. According to the definition of $R_\text{eff}$, we have $R_\text{eff}(s_\text{new}) = f(s_1)$. $f(x)$ is strictly increasing when $x < d / (\Delta n + 1)$ and strictly decreasing when $x > d / (\Delta n + 1)$. According to our assumption that (\ref{math:first-is-small}) holds, we have $s_1 \le \bar s' / k_\text{num} = d / \Delta n$. Therefore, we have $f(s_1) > \lim_{x\rightarrow 0^+} f(x)$ or $f(s_1) \ge f(d/\Delta n)$. Since $\lim_{x\rightarrow 0^+} f(x) = \log_2 \Delta n$, and $f(d / \Delta n) > \log_2 \Delta n$, we have $f(s_1) > \log_2 \Delta n$. Since $\Delta n = \lceil 2^{R_\text{eff}(s')} \rceil$, we have $R_\text{eff}(s') \le \log_2 \Delta n$. Therefore, the preemptive entropy condition is satisfied:
 \begin{equation}\label{math:sliding-window-entropy-condition}
