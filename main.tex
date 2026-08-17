@@ -1,0 +1,48 @@
+
+% VLDB template version of 2020-08-03 enhances the ACM template, version 1.7.0:
+% https://www.acm.org/publications/proceedings-template
+% The ACM Latex guide provides further information about the ACM template
+
+\documentclass[sigconf]{acmart}
+
+\settopmatter{printacmref=false}
+\setcopyright{none}
+\renewcommand{\footnotetextcopyrightpermission}[1]{}
+
+%%
+%% \BibTeX command to typeset BibTeX logo in the docs
+\AtBeginDocument{%
+  \providecommand\BibTeX{{%
+    Bib\TeX}}}
+
+\begin{document}
+\title{Supplementary Material for Entropy-based Compaction}
+\maketitle
+
+\section{Pruning Candidates with Small First Runs}
+
+Consider a candidate compaction on sorted runs with sizes $s_1,s_2,\cdots, s_n$, $n>2$, where $s_1$ is the newest and typically smallest. We can prove that if
+\begin{equation}\label{math:first-is-small}
+s_1 \leq (\sum_{i=2}^{n} s_i) / (n-1) / k_\text{num},
+\end{equation}
+i.e., if the first sorted run is no larger than the average size of the remaining sorted runs divided by $k_\text{num}$, we can construct a sequence of newer runs that forms a compaction with $s_1$ to preempt the compaction on $[s_2, \cdots, s_{n}]$. Therefore, we identify such a candidate as having a \emph{small first sorted run} and prune it accordingly.
+
+\begin{proof}
+For readability, we directly present our constructed size sequence of newer runs $\Delta s$. Let $\Delta a = \sum_i \Delta s_i$, $\Delta n = |\Delta s|$, $s' = [s_2, \cdots, s_n]$, $\bar s' = \sum_{i=2}^{n} s_i / (n-1)$. For our constructed $\Delta s$, $\Delta n = \lceil 2^{R_\text{eff}(s')} \rceil$, $\Delta a = \Delta n \cdot \bar s' / k_\text{num} - s_1$, $\Delta s_1 = \cdots = \Delta s_{\Delta n} = \Delta a / \Delta n$.
+
+The size sequence of the new compaction formed by the new sorted runs and $s_1$ is $s_\text{new} = [\Delta s_1, \cdots, \Delta s_{\Delta n}, s_1]$. According to the definition of $R_\text{num}$, $R_\text{num}(s') = (n-2) / ((n-1)\bar s')$. Therefore, the preemptive number condition is satisfied:
+\begin{equation}\label{math:sliding-window-number-condition}
+R_\text{num}(s_\text{new}) = \frac{\Delta n}{\Delta a + s_1} = \frac{k_\text{num}}{\bar s'} = \frac{n-1}{n-2} k_\text{num} R_\text{num}(s') > k_\text{num} R_\text{num}(s')
+\end{equation}
+Define helper variable $d = \Delta n \cdot \bar s' / k_\text{num}$, then $\Delta a = d - s_1$. Define $f(x) = \log_2 d - (x \log_2 x + (d - x) \log_2 ((d - x) / \Delta n)) / d$. According to the definition of $R_\text{eff}$, we have $R_\text{eff}(s_\text{new}) = f(s_1)$. $f(x)$ is strictly increasing when $x < d / (\Delta n + 1)$ and strictly decreasing when $x > d / (\Delta n + 1)$. According to our assumption that (\ref{math:first-is-small}) holds, we have $s_1 \le \bar s' / k_\text{num} = d / \Delta n$. Therefore, we have $f(s_1) > \lim_{x\rightarrow 0^+} f(x)$ or $f(s_1) \ge f(d/\Delta n)$. Since $\lim_{x\rightarrow 0^+} f(x) = \log_2 \Delta n$, and $f(d / \Delta n) > \log_2 \Delta n$, we have $f(s_1) > \log_2 \Delta n$. Since $\Delta n = \lceil 2^{R_\text{eff}(s')} \rceil$, we have $R_\text{eff}(s') \le \log_2 \Delta n$. Therefore, the preemptive entropy condition is satisfied:
+\begin{equation}\label{math:sliding-window-entropy-condition}
+R_\text{eff}(s_\text{new}) = f(s_1) > \log_2 \Delta n \ge R_\text{eff}(s')
+\end{equation}
+Combining (\ref{math:sliding-window-number-condition}) and (\ref{math:sliding-window-entropy-condition}), we can conclude that the compaction on $s_\text{new}$ can preempt the compaction on $s'$ according to the preemption conditions. Since $R_\text{eff}(\Delta s) = \log_2(\Delta n)$, we also have $R_\text{eff}(s_\text{new}) > R_\text{eff}(\Delta s)$, ensuring that the compaction on $s_\text{new}$ will be preferred over the compaction on $\Delta s$.
+\end{proof}
+
+% \bibliographystyle{ACM-Reference-Format}
+% \bibliography{main}
+
+\end{document}
+\endinput
