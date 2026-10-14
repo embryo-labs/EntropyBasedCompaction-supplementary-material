@@ -1,9 +1,12 @@
+% !TeX program = pdflatex
 
 % VLDB template version of 2020-08-03 enhances the ACM template, version 1.7.0:
 % https://www.acm.org/publications/proceedings-template
 % The ACM Latex guide provides further information about the ACM template
 
 \documentclass[sigconf]{acmart}
+
+\usepackage[capitalise, noabbrev]{cleveref}
 
 \settopmatter{printacmref=false}
 \setcopyright{none}
@@ -18,6 +21,57 @@
 \begin{document}
 \title{Supplementary Material for Entropy-based Compaction}
 \maketitle
+
+\section{Space Amplification}
+
+The space amplification is defined as $\text{SA} = s_\text{total} / S$, where $s_\text{total}$ is the total size of sorted runs and $S$ is the total data size of the key space. We estimate the worst-case space amplification when no compaction can be triggered. Let the sorted run size sequence be $s = [s_1,s_2,\cdots,s_n]$, with $0 < s_i \le S$ and $\sum_i s_i = s_\text{total}$. Since each run has size at most $S$, the efficiency of a full compaction satisfies:
+\begin{align*}
+R_\text{eff}(s)
+&= \sum_{i=1}^n \frac{s_i}{s_\text{total}} \log_2 \frac{s_\text{total}}{s_i} \\
+&\ge \sum_{i=1}^n \frac{s_i}{s_\text{total}} \log_2 \frac{s_\text{total}}{S} \\
+&= \log_2 \frac{s_\text{total}}{S}
+= \log_2(\text{SA}).
+\end{align*}
+Since no compaction can be triggered, we have $R_\text{eff}(s) < \tau_e$. Thus:
+$$\text{SA} < 2^{\tau_e}$$
+
+This bound is tight when $2^{\tau_e}$ is an integer. For instance, an LSM-tree with $2^{\tau_e}$ sorted runs of size near $S$ can yield $R_\text{eff}$ slightly below $\tau_e$, resulting in $\text{SA} \approx 2^{\tau_e}$ without triggering compaction.
+
+\section{Read Amplification}
+
+The read amplification is defined as the number of sorted runs, $n$. We estimate the worst-case read amplification when no compaction can be triggered. Let the sorted run size sequence be $[s_1, s_2, \cdots, s_n]$. We assume that newer sorted runs are no larger than the older sorted runs, i.e., $s_1\leq s_2\leq \cdots \leq s_n$.
+
+We define $f(i) = R_\text{eff}([s_1, \cdots, s_i])$ as the $R_\text{eff}$ of the first $i$ runs. Since we assume no compaction can be triggered, we have $f(i) < \tau_e, \forall i\in[1, n]$. Let $\alpha_{i}$ be the ``size ratio'' between the first $i-1$ runs and the first $i$ runs: $\alpha_{i}=(\sum_{j=1}^{i-1} s_j)/(\sum_{j=1}^i s_j)$. This yields the recursion
+\begin{equation}\label{math:entropy-recursion}
+f(i)=\alpha_i f(i-1) + H(\alpha_i),
+\end{equation}
+where $H(\alpha)=-\alpha \log_2(\alpha)-(1-\alpha)\log_2(1-\alpha)$. Since a newly flushed sorted run has a MemTable size $F$ and compactions with older runs do not decrease its size, we have $s_1 \ge F$. This implies $\prod_{i=2}^n \alpha_i = s_1 / s_\text{total} \ge F / s_\text{total}$, where $s_\text{total} = \sum_{i=1}^n s_i$. Now we transform the problem into finding an upper bound on the read amplification $n$ under the following constraints:
+\begin{align*}
+\prod_{i=2}^n \alpha_i & \ge \frac{F}{s_\text{total}} \\
+f(i) & = \alpha_{i} f(i-1) + H(\alpha_{i}), f(1)=0, i\in [2, n] \\
+f(i) & < \tau_e, \forall i \in [1, n]
+\end{align*}
+
+We could get an upper bound of $n$ by deriving the necessary condition of these constraints. The insight is that if the upper bound of $\prod_{i=2}^n \alpha_i$ for a given $n$ falls below $F / s_\text{total}$, then that $n$ is no longer possible. Therefore, we aim to explicitly represent the upper bound of $\prod_{i=2}^n \alpha_i$ as a function $g(n)$. Then we can obtain an upper bound of $n$ by solving $g(n)\ge F / s_\text{total}$.
+
+Let $L = \sum_{i=2}^n \ln \alpha_i$. Finding the upper bound of $\prod_{i=2}^n \alpha_i$ is equivalent to maximizing $L$. One can show that $L$ is monotonically non-decreasing with respect to each $f(i)$ under the assumption $s_i \le s_{i+1}$. As a result, we should let $f(i)$ approach $\tau_e$ as closely as possible to get the upper bound of $\prod_{i=2}^n \alpha_i$. Since the $R_\text{eff}$ of $i$ sorted runs is maximized at $\log_2 i$ when the $i$ sorted runs are of equal size, we have $f(i) \le \log_2 i$. Therefore, for $i < \lceil 2^{\tau_e} \rceil$, we set $s_1 = \cdots = s_{\lceil 2^{\tau_e}\rceil - 1}$ so that $f(i) = \log_2 i$. For $i \ge \lceil 2^{\tau_e} \rceil$, we let $f(i) = \tau_e$. Substituting $f(i-1) = f(i) = \tau_e$ into \cref{math:entropy-recursion} yields a constant size ratio $\alpha^* \in (0, 1)$ satisfying $\tau_e = \tau_e\alpha^*+H(\alpha^*)$, i.e.,
+$$
+\frac{H(\alpha^*)}{1-\alpha^*} = \tau_e
+$$
+One can show $\alpha^*$ has a unique solution.
+Thus, for $i > \lceil 2^{\tau_e} \rceil, \alpha_i = \alpha^*$. Let $d = \lceil 2^{\tau_e} \rceil$. For $n \ge d$, since $\prod_{i=2}^{d} \alpha_i = s_1 / \sum_{i=1}^d s_i \le 1/d$, the upper bound of $\prod_{i=2}^n \alpha_i$ is $g(n)=(\alpha^*)^{n-d} / d$. Solving $g(n) \ge F / s_\text{total}$ yields an upper bound on read amplification (note that $\alpha^* < 1$):
+$$
+\text{RA} = n \le \log_{\alpha^*}\frac{\lceil 2^{\tau_e} \rceil F}{s_\text{total}} + \lceil 2^{\tau_e} \rceil, \qquad n\ge d.
+$$
+
+Since the space amplification $\text{SA} \leq 2^{\tau_e}$, we have $s_\text{total} \le 2^{\tau_e} S$. Therefore, we can give a bound depending on $S$:
+$$
+\text{RA} \leq \log_{\alpha^*}\frac{F}{S} + \lceil 2^{\tau_e} \rceil
+$$
+For $n<d$, the same bound holds directly because $F \le S$ and $0 < \alpha^* < 1$ imply
+$$
+n < d \le \log_{\alpha^*} \frac{F}{S} + d.
+$$
 
 \section{Pruning Candidates with Small First Runs}
 
@@ -40,11 +94,11 @@ R_\text{num}(s_\text{new})
 > k_\text{num} R_\text{num}(s')
 \end{aligned}
 \end{equation}
-Define helper variable $d = \Delta n \cdot \bar s' / k_\text{num}$, then $\Delta a = d - s_1$. Define $f(x) = \log_2 d - (x \log_2 x + (d - x) \log_2 ((d - x) / \Delta n)) / d$. According to the definition of $R_\text{eff}$, we have $R_\text{eff}(s_\text{new}) = f(s_1)$. $f(x)$ is strictly increasing when $x < d / (\Delta n + 1)$ and strictly decreasing when $x > d / (\Delta n + 1)$. According to our assumption that (\ref{math:first-is-small}) holds, we have $s_1 \le \bar s' / k_\text{num} = d / \Delta n$. Therefore, we have $f(s_1) > \lim_{x\rightarrow 0^+} f(x)$ or $f(s_1) \ge f(d/\Delta n)$. Since $\lim_{x\rightarrow 0^+} f(x) = \log_2 \Delta n$, and $f(d / \Delta n) > \log_2 \Delta n$, we have $f(s_1) > \log_2 \Delta n$. Since $\Delta n = \lceil 2^{R_\text{eff}(s')} \rceil$, we have $R_\text{eff}(s') \le \log_2 \Delta n$. Therefore, the preemptive entropy condition is satisfied:
+Define helper variable $d = \Delta n \cdot \bar s' / k_\text{num}$, then $\Delta a = d - s_1$. Define $f(x) = \log_2 d - (x \log_2 x + (d - x) \log_2 ((d - x) / \Delta n)) / d$. According to the definition of $R_\text{eff}$, we have $R_\text{eff}(s_\text{new}) = f(s_1)$. $f(x)$ is strictly increasing when $x < d / (\Delta n + 1)$ and strictly decreasing when $x > d / (\Delta n + 1)$. According to our assumption that \cref{math:first-is-small} holds, we have $s_1 \le \bar s' / k_\text{num} = d / \Delta n$. Therefore, we have $f(s_1) > \lim_{x\rightarrow 0^+} f(x)$ or $f(s_1) \ge f(d/\Delta n)$. Since $\lim_{x\rightarrow 0^+} f(x) = \log_2 \Delta n$, and $f(d / \Delta n) > \log_2 \Delta n$, we have $f(s_1) > \log_2 \Delta n$. Since $\Delta n = \lceil 2^{R_\text{eff}(s')} \rceil$, we have $R_\text{eff}(s') \le \log_2 \Delta n$. Therefore, the preemptive entropy condition is satisfied:
 \begin{equation}\label{math:sliding-window-entropy-condition}
 R_\text{eff}(s_\text{new}) = f(s_1) > \log_2 \Delta n \ge R_\text{eff}(s')
 \end{equation}
-Combining (\ref{math:sliding-window-number-condition}) and (\ref{math:sliding-window-entropy-condition}), we can conclude that the compaction on $s_\text{new}$ can preempt the compaction on $s'$ according to the preemption conditions. Since $R_\text{eff}(\Delta s) = \log_2(\Delta n)$, we also have $R_\text{eff}(s_\text{new}) > R_\text{eff}(\Delta s)$, ensuring that the compaction on $s_\text{new}$ will be preferred over the compaction on $\Delta s$.
+Combining \cref{math:sliding-window-number-condition} and \cref{math:sliding-window-entropy-condition}, we can conclude that the compaction on $s_\text{new}$ can preempt the compaction on $s'$ according to the preemption conditions. Since $R_\text{eff}(\Delta s) = \log_2(\Delta n)$, we also have $R_\text{eff}(s_\text{new}) > R_\text{eff}(\Delta s)$, ensuring that the compaction on $s_\text{new}$ will be preferred over the compaction on $\Delta s$.
 \end{proof}
 
 % \bibliographystyle{ACM-Reference-Format}
